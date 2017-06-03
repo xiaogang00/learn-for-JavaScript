@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>String Type localeCompare() Example</title>
+    <script type="text/javascript">
+    
+        var stringValue = "yellow";       
+        alert(stringValue.localeCompare("brick"));  //1
+        alert(stringValue.localeCompare("yellow")); //0
+        alert(stringValue.localeCompare("zoo"));    //-1
+        
+        //preferred technique for using localeCompare()
+        function determineOrder(value) {
+            var result = stringValue.localeCompare(value);
+            if (result < 0){
+                alert("The string 'yellow' comes before the string '" + value + "'.");
+            } else if (result > 0) {
+                alert("The string 'yellow' comes after the string '" + value + "'.");
+            } else {
+                alert("The string 'yellow' is equal to the string '" + value + "'.");
+            }
+        }
+        
+        determineOrder("brick");
+        determineOrder("yellow");
+        determineOrder("zoo");
+
+    </script>
+</head>
+<body>
+
+	<center>
+  <div style="font-size:15px; font-weight:bold; text-align:center; line-height:25px;">
+     源码由<a href="http://www.jq-school.com" target="_blank" style="color:#000">JquerySchool</a>网站整理（<a href="http://www.jq-school.com" target="_blank">http://www.jq-school.com</a>）学习交流QQ群<a target="_blank" href="http://wp.qq.com/wpa/qunwpa?idkey=f221dd676cd5f7f51f6b580ff8fe1bdd2fefe911ae0e1137a6f79c58d6e11ebf"><img border="0" src="http://pub.idqqimg.com/wpa/images/group.png" alt="Jquery学堂QQ⑧群" title="Jquery学堂QQ⑧群"></a></div>
+</center>
+</body>
+</html>
