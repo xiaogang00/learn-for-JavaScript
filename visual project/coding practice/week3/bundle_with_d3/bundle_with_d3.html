@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<style>
+    .node {
+        font: 300 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
+        fill: #bbb;
+    }
+
+    .link {
+        stroke: steelblue;
+        stroke-opacity: 0.4;
+        fill: none;
+        pointer-events: none;
+    }
+</style>
+
+<svg width="960" height="960"></svg>
+
+<script src="d3.v4.min.js"></script>
+<script>
+    /*
+        画集群图
+        1. 首先处理数据，使用d3.hierarchy()产生数据，使用d3.cluster()进一步生成数据
+        2. 然后表现数据，使用svg、path、text表现数据。
+     */
+    (function () {
+        var svg = d3.select("svg"),
+            root,
+            diameter = +svg.attr("width"),
+            radius = diameter / 2,
+            innerRadius = radius - 120,
+            cluster = d3.cluster()
+                .size([360, innerRadius]),
+            line = d3.radialLine()
+                .curve(d3.curveBundle.beta(0.85))
+                .radius(function (d) {
+                    return d.y;
+                })
+                .angle(function (d) {
+                    return d.x / 180.0 * Math.PI;
+                }),
+            group = svg.append("g")
+                .attr("transform", function () {
+                    return "translate(" + [radius, radius] + ")";
+                });
+
+        d3.json("flare.json", function (err, data) {
+            if (err)
+                throw err;
+
+            data = processData(data);
+            root = d3.hierarchy(data)
+                .sum(function (d) {
+                    return d.size;
+                });
+            cluster(root);
+
+            group.append("g")
+                .selectAll("path")
+                .data(getImports(root.leaves()))
+                .enter()
+                .append("path")
+                .attr("class", "link")
+                .attr("d", line);
+
+            group.append("g")
+                .selectAll("text")
+                .data(root.leaves())
+                .enter()
+                .append("text")
+                .attr("class", "node")
+                .attr("transform", function (d) {
+                    return "rotate(" + (d.x - 90) + ")" + "translate(" + (d.y + 8) + ")" + (d.x < 180 ? "" : "rotate(180)");
+                })
+                .attr("text-anchor", function (d) {
+                    return d.x < 180 ? "start" : "end";
+                })
+                .text(function (d) {
+                    return d.data.key;
+                });
+        });
+
+        function processData(data) {
+            var tree = {};
+
+            function findChildren(name, d) {
+                var node =  tree[name],
+                    i;
+
+                if (!node) {
+                    node = tree[name] = d || {name: name, children: []};
+
+                    if (name.length) {
+                        i = name.lastIndexOf(".");
+                        node.parent = findChildren(name.substring(0, i));
+                        node.parent.children.push(node);
+                        node.key = name.substring(i+1);
+                    }
+                }
+
+                return node;
+            }
+
+            data.forEach(function (d) {
+                findChildren(d.name, d);
+            });
+
+            return tree[""];
+        }
+
+        function getImports(nodes) {
+            var map = {},
+                imports = [];
+
+            // Compute a map from name to node.
+            nodes.forEach(function(d) {
+                map[d.data.name] = d;
+            });
+
+            // For each import, construct a link from the source to target node.
+            nodes.forEach(function(d) {
+                if (d.data.imports) {
+                    d.data.imports.forEach(function(i) {
+                        imports.push(map[d.data.name].path(map[i]));
+                    });
+                }
+            });
+
+            return imports;
+        }
+    })();
+</script>

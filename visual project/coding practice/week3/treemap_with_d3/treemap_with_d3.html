@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<svg width="960" height="570"></svg>
+<form>
+    <label for="count"><input type="radio" id="count" name="mode" checked="checked"> sumByCount</label>
+    <label for="size"><input type="radio" id="size" name="mode"> sumBySize</label>
+</form>
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+    (function () {
+        var svg = d3.select("svg"),
+            width = +svg.attr("width"),
+            height = +svg.attr("height"),
+            treemap = d3.treemap()
+                .tile(d3.treemapResquarify)
+                .size([width, height])
+                .round(true)
+                .paddingInner(1),
+            root,
+            cell = svg.append("g"),
+            fader = function (color) {
+                return d3.interpolateRgb(color, "#fff")(0.2);
+            },
+            color = d3.scaleOrdinal(d3.schemeCategory20.map(fader)),
+            x = function (d) {
+                return d.x0;
+            },
+            y = function (d) {
+                return d.y0;
+            },
+            rectWidth = function (d) {
+                return d.x1 - d.x0;
+            },
+            rectHeight = function (d) {
+                return d.y1 - d.y0;
+            },
+            fill = function (d) {
+                return color(d.parent.data.id);
+            };
+
+        d3.json("flare.json", function (err, data) {
+            if (err) {
+                throw err;
+            }
+
+            root = d3.hierarchy(data)
+                .eachBefore(function (d) {
+                    if (d.parent) {
+                        d.data.id = d.parent.data.id + "." + d.data.name;
+                    }
+                    else {
+                        d.data.id = d.data.name;
+                    }
+                })
+                .sum(sumByCount)
+                .sort(function (node1, node2) {
+                    return node2.height - node1.height || node2.value - node1.value;
+                });
+            treemap(root);
+
+            cell.selectAll("rect")
+                .data(root.leaves())
+                .enter()
+                .append("rect")
+                .attr("x", x)
+                .attr("y", y)
+                .attr("width", rectWidth)
+                .attr("height", rectHeight)
+                .attr("fill", fill);
+
+            d3.selectAll("input")
+                .data([sumByCount, sumBySize])
+                .on("change", changed);
+
+            function changed(sum) {
+                treemap(root.sum(sum));
+
+                cell.selectAll("rect")
+                    .transition()
+                    .duration(2500)
+                    .attr("x", x)
+                    .attr("y", y)
+                    .attr("width", rectWidth)
+                    .attr("height", rectHeight);
+            }
+        });
+
+        function sumByCount(d) {
+            return d.children ? 0 : 1;
+        }
+
+        function sumBySize(d) {
+            return d.size;
+        }
+    })();
+</script>

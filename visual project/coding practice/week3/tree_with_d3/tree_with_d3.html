@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<style>
+
+    .node {
+        cursor: pointer;
+    }
+
+    .node circle {
+        fill: #fff;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+    }
+
+    .node text {
+        font: 10px sans-serif;
+    }
+
+    .link {
+        fill: none;
+        stroke: #ccc;
+        stroke-width: 1.5px;
+    }
+
+</style>
+
+<svg width="960" height="2000"></svg>
+
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<script>
+    (function () {
+        var root,
+            svg = d3.select("svg"),
+            width = +svg.attr("width"),
+            height = +svg.attr("height"),
+            margin = {left: 150, right:150, top: 20, bottom:20},
+            group = svg.append("g")
+                .attr("transform", function () {
+                    return "translate(" + [margin.left, margin.top] + ")";
+                }),
+            nodeGroup = group.append("g")
+                .attr("class", "node"),
+            linkGroup = group.append("g")
+                .attr("class", "link"),
+            tree = d3.layout.tree()
+                .size([height-margin.top-margin.bottom, width-margin.left-margin.right])
+                .separation(function (a, b) {
+                    return (a.parent === b.parent ? 20 : 40);
+                }),
+            line = d3.svg.diagonal()
+                .projection(function (d) {
+                    return [d.y, d.x];
+                }),
+            fill = function (d) {
+                return d._children ? "steelblue" : "#fff";
+            },
+            cx = function (d) {
+                return d.y;
+            },
+            cy = function (d) {
+                return d.x;
+            },
+            textX = function (d) {
+                return d.y;
+            },
+            textY = function (d) {
+                return d.x;
+            },
+            dx = function (d) {
+                return d.children ? "-10px" : "10px";
+            },
+            text_anchor = function (d) {
+                return d.children ? "end" : "start";
+            },
+            index = 0;
+
+        d3.json("flare.json", function (err, data) {
+            if (err)
+                throw err;
+
+            root = data;
+            
+//            function collapse(d) {
+//                if (d.children) {
+//                    d.children.forEach(collapse);
+//                    d._children = d.children;
+//                    d.children = null;
+//                }
+//            }
+//
+//            root.children.forEach(collapse);
+            update(root);
+        });
+
+        function update(data) {
+            var nodes = tree.nodes(root),
+                links = tree.links(nodes),
+                node = nodeGroup.selectAll("circle")
+                    .data(nodes, function (d) {
+                        return d.id || (d.id = index++);
+                    }),
+                text = nodeGroup.selectAll("text")
+                    .data(nodes, function (d) {
+                        return d.id;
+                    }),
+                link = linkGroup.selectAll("path")
+                    .data(links, function (d) {
+                        return d.target.id;
+                    });
+
+            nodes.forEach(function (d) {
+                return d.y = d.depth * 180;
+            });
+
+            node.attr("cx", cx)
+                .attr("cy", cx)
+                .attr("fill", fill);
+
+            text.attr("dx", dx)
+                .attr("text-anchor", text_anchor);
+            link.attr("d", line);
+
+            node.enter()
+                .append("circle")
+                .attr("cx", cx)
+                .attr("cy", cy)
+                .attr("r", 5)
+                .style("fill", fill);
+            text.enter()
+                .append("text")
+                .attr("x", textX)
+                .attr("y", textY)
+                .attr("dx", dx)
+                .attr("dy", "2.5px")
+                .attr("text-anchor", text_anchor)
+                .text(function (d) {
+                    return d.name;
+                });
+            link.enter()
+                .append("path")
+                .attr("d", line);
+        }
+
+//        function clicked(d) {
+//            if (d.children) {
+//                d._children = d.children;
+//                d.children = null;
+//            }
+//            else {
+//                d.children = d._children;
+//                d._children = null;
+//            }
+//            update(d);
+//        }
+    })();
+</script>

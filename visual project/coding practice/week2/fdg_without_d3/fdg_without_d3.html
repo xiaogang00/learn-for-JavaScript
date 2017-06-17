@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<style>
+    .nodes circle
+    {
+        stroke: #999;
+        stroke-width: 1.5px;
+    }
+
+    .links line
+    {
+        stroke: #999;
+        stroke-opacity: 0.6;
+        stroke-width: 2px;
+    }
+</style>
+
+<svg xmlns="http://www.w3.org/2000/svg"
+     id="svg"
+     version="1.1"
+     width="900" height="600"></svg>
+
+<script>
+    /////////////////////////////
+    //                         //
+    //         全局变量         //
+    //                         //
+    /////////////////////////////
+
+    var svg = document.getElementById("svg");
+    var nodeNum = 0;
+    var lineNum = 0;
+    var linksHash = {};
+    var RUNTIMES = 200;
+    var runTimes = RUNTIMES;
+
+</script>
+
+<script>
+    /////////////////////////////
+    //                         //
+    //     与网页元素相关的函数   //
+    //                         //
+    /////////////////////////////
+
+    function getNodeNum(node) {
+        return parseInt(node.getAttribute("id").replace(/node/, ""));
+    }
+
+    function createNode(x, y) {
+        var node = document.createElementNS('http://www.w3.org/2000/svg',"circle");
+        var nodes = document.getElementById("nodes");
+
+        nodeNum++;
+        node.setAttribute("id", "node"+nodeNum);
+        node.setAttribute("r", "20");
+        node.setAttribute("fill", "black");
+        node.setAttribute("cx", String(x));
+        node.setAttribute("cy", String(y));
+        nodes.appendChild(node);
+
+        return node;
+    }
+
+    function drawLine(node1, node2) {
+        var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        var links = document.getElementById("links");
+        var num1 = getNodeNum(node1);
+        var num2 = getNodeNum(node2);
+        var lineId;
+
+        lineNum++;
+        lineId = "line" + lineNum;
+        line.setAttribute("id", lineId);
+        linksHash[String(num1)+String(num2)] = lineId;
+        linksHash[String(num2)+String(num1)] = lineId;
+        line.setAttribute("x1", node1.getAttribute("cx"));
+        line.setAttribute("y1", node1.getAttribute("cy"));
+        line.setAttribute("x2", node2.getAttribute("cx"));
+        line.setAttribute("y2", node2.getAttribute("cy"));
+        links.appendChild(line);
+    }
+    
+    function updateNode(node, x, y) {
+        node.setAttribute("cx", String(x));
+        node.setAttribute("cy", String(y));
+    }
+
+    function updateLine(node) {
+        var childNodes = node.parentNode.childNodes;
+        var i;
+        var num1, num2;
+        var line, lineId;
+
+        num1 = getNodeNum(node);
+
+        for (i = 0; i < childNodes.length; i++)
+        {
+            if (childNodes[i] === node)
+                continue;
+
+            num2 = getNodeNum(childNodes[i]);
+            lineId = linksHash[String(num1)+String(num2)];
+
+            if (typeof(lineId) === "undefined")
+                continue;
+
+            line = document.getElementById(lineId);
+            line.setAttribute("x1", node.getAttribute("cx"));
+            line.setAttribute("y1", node.getAttribute("cy"));
+            line.setAttribute("x2", childNodes[i].getAttribute("cx"));
+            line.setAttribute("y2", childNodes[i].getAttribute("cy"));
+        }
+    }
+
+</script>
+
+<script>
+
+    /////////////////////////////
+    //                         //
+    //   与力导图算法相关的函数   //
+    //                         //
+    /////////////////////////////
+
+    function getDelta(node1, node2) {
+        var x1 = parseFloat(node1.getAttribute("cx"));
+        var y1 = parseFloat(node1.getAttribute("cy"));
+        var x2 = parseFloat(node2.getAttribute("cx"));
+        var y2 = parseFloat(node2.getAttribute("cy"));
+        var deltaX = x2 - x1;
+        var deltaY = y2 - y1;
+
+        return [deltaX, deltaY];
+    }
+
+    function getTheta(node1, node2) {
+        var delta = getDelta(node1, node2);
+        var deltaX = delta[0];
+        var deltaY = delta[1];
+        var theta;
+
+        if (deltaX === 0)
+        {
+            if (deltaY === 0)
+                return 0;
+
+            theta = (deltaY > 0 ? Math.PI/2 : -Math.PI/2);
+            return theta;
+        }
+
+        theta = Math.atan(deltaY/deltaX);
+
+        if (deltaX > 0)
+            return theta;
+        else
+            return theta + Math.PI;
+    }
+
+    function getRepulseForce(node1, node2) {
+        var delta = getDelta(node1, node2);
+        var deltaX = delta[0];
+        var deltaY = delta[1];
+        var distance = Math.pow(deltaX, 2) + Math.pow(deltaY, 2);
+
+        return 1000.0/distance;
+    }
+
+    function getAttractForce(node1, node2) {
+        var delta = getDelta(node1, node2);
+        var deltaX = delta[0];
+        var deltaY = delta[1];
+        var distance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
+
+        return -0.003*distance;
+    }
+
+    function forceDirectedAlgorithm() {
+        var nodes = document.getElementById("nodes");
+        var i, j;
+        var childNodes = nodes.childNodes;
+        var xForce, yForce, totalXForce, totalYForce;
+        var repulseForce, attractForce, force, theta;
+        var realX = new Array(childNodes.length);
+        var realY = new Array(childNodes.length);
+        var num1, num2;
+        var line;
+
+        for (i = 0; i < childNodes.length; i++)
+        {
+            totalXForce = 0.0;
+            totalYForce = 0.0;
+
+            for (j = 0; j < childNodes.length; j++)
+            {
+                if (i === j)
+                    continue;
+
+                repulseForce = getRepulseForce(childNodes[i], childNodes[j]);
+                num1 = getNodeNum(childNodes[i]);
+                num2 = getNodeNum(childNodes[j]);
+                line = linksHash[String(num1)+String(num2)];
+                if (typeof(line) === "undefined")
+                    attractForce = 0;
+                else
+                    attractForce = getAttractForce(childNodes[i], childNodes[j]);
+
+                force = repulseForce + attractForce;
+
+                theta = getTheta(childNodes[j], childNodes[i]);
+                xForce = force * Math.cos(theta);
+                yForce = force * Math.sin(theta);
+
+                totalXForce += xForce;
+                totalYForce += yForce;
+            }
+
+            realX[i] = totalXForce + parseFloat(childNodes[i].getAttribute("cx"));
+            if (realX[i] < 0 || realX[i] > svg.getAttribute("width"))
+                realX[i] = parseFloat(svg.getAttribute("width")) / 2.0;
+
+            realY[i] = totalYForce + parseFloat(childNodes[i].getAttribute("cy"));
+            if (realY[i] < 0 || realY[i] > svg.getAttribute("height"))
+                realY[i] = parseFloat(svg.getAttribute("height")) / 2.0;
+        }
+
+        for (i = 0; i < childNodes.length; i++)
+            updateNode(childNodes[i], realX[i], realY[i]);
+
+        for (i = 0; i < childNodes.length; i++)
+            updateLine(childNodes[i]);
+
+        runTimes--;
+        if (runTimes <= 0)
+        {
+            clearInterval(forceDirect);
+            forceDirect = null;
+        }
+    }
+</script>
+
+<script>
+    /////////////////////////////
+    //                         //
+    //      与拖拽相关的函数     //
+    //                         //
+    /////////////////////////////
+
+    var isDragging = 0;
+
+    function getMouseXY(event) {
+        var x, y;
+        event = event || window.event;
+
+        if (event.pageX)
+        {
+            x = event.pageX;
+            y = event.pageY;
+        }
+        else
+        {
+            x = event.clientX - document.body.clientLeft + document.body.scrollLeft;
+            y = event.clientY - document.body.clientTop + document.body.scrollTop;
+        }
+
+        return {x: x, y: y};
+    }
+
+    function getParentXY() {
+//        var offsetLeft = svg.offsetLeft;
+//        var offsetTop = svg.offsetTop;
+
+        return {x: 0, y: 0};
+    }
+
+    function drag_start(event) {
+        isDragging = 1;
+        if (forceDirect === null)
+        {
+            runTimes = RUNTIMES;
+            forceDirect = setInterval(forceDirectedAlgorithm, 20);
+        }
+    }
+
+    function dragging(event) {
+        var mouseXY;
+        var parentXY;
+        var nodeXY = {};
+        var node = event.target;
+
+        if (isDragging)
+        {
+            runTimes = RUNTIMES;
+            mouseXY = getMouseXY(event);
+            parentXY = getParentXY();
+            nodeXY.x = mouseXY.x - parentXY.x;
+            nodeXY.y = mouseXY.y - parentXY.y;
+            updateNode(node, nodeXY.x, nodeXY.y);
+            updateLine(node);
+        }
+    }
+
+    function drag_end(event) {
+        isDragging = 0;
+    }
+</script>
+
+<script>
+    var nodes = document.createElementNS('http://www.w3.org/2000/svg',"g");
+    var links = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    var forceDirect;
+
+    nodes.setAttribute("class", "nodes");
+    nodes.setAttribute("id", "nodes");
+    svg.appendChild(nodes);
+
+    links.setAttribute("class", "links");
+    links.setAttribute("id", "links");
+    svg.appendChild(links);
+
+    var node1 = createNode(120, 120);
+    var node2 = createNode(120, 150);
+    var node3 = createNode(130, 110);
+    var node4 = createNode(170, 190);
+
+    drawLine(node1, node2);
+    drawLine(node2, node3);
+    drawLine(node3, node4);
+
+    forceDirect = setInterval(forceDirectedAlgorithm, 20);
+
+    document.onmousedown = drag_start;
+    node1.onmousemove = dragging;
+    node2.onmousemove = dragging;
+    node3.onmousemove = dragging;
+    node4.onmousemove = dragging;
+    document.onmouseup = drag_end;
+</script>
