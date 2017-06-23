@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>d3DrawSVG</title>
+    <script src = "https://d3js.org/d3.v4.min.js"></script>
+</head>
+<body>
+<script >
+    // SVG尺寸
+    var w = 500;
+    var h = 50;
+
+    // 数据
+    var dataset = [ 5, 10, 15, 20, 25 ];
+
+    // 创建SVG容器
+    var svg = d3.select("body")
+                .append("svg")
+                .attr("width", 500)
+                .attr("height", 50);
+
+    // 创建圆
+    var circles = svg.selectAll("circle")
+        .data(dataset)
+        .enter()
+        .append("circle");
+
+    // 根据数据设置每个圆的属性
+    circles.attr("cx", function(d, i) {
+            return (i * 50) + 25;
+        })
+       .attr("cy", h/2)
+       .attr("r", function(d) {
+            return d;
+       });
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>d3Drawpath</title>
+    <script src = "https://d3js.org/d3.v4.min.js"></script>
+</head>
+<body>
+<script>
+    var svg = d3.select("body")
+            .append("svg")
+            .attr("width",600)
+            .attr("height",300);
+    svg.append("path")
+        .attr('id','mypath')
+        .attr('d','M50 100Q350 50 350 250Q250 50 50 250')
+        .attr('fill', 'none')
+        .attr('stroke', '#0000aa')
+        .attr('stroke-width',10);  
+
+</script>
+
+</body>
+</html>
